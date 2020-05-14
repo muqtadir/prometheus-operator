@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: consul
+  namespace: argocd
+  labels:
+    scope: system
+spec:
+  destination:
+    namespace: monitoring
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://charts.bitnami.com/bitnami/'
+    targetRevision: 7.0.15
+    chart: consul
+    helm:
+      parameters:
+        - name: datacenterName
+          value: eus1-devqa
+        - name: replicas
+          value: '3'
+        - name: service.uiPort
+          value: '8080'
+        - name: service.port
+          value: '8500'
+        - name: ui.service.type
+          value: 'LoadBalancer'
+      releaseName: consul
+  project: monitoring
+  syncPolicy:
+    automated: {}
