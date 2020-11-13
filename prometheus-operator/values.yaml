@@ -1919,7 +1919,78 @@ prometheus:
 
     ## Containers allows injecting additional containers. This is meant to allow adding an authentication proxy to a Prometheus pod.
     ##  if using proxy extraContainer  update targetPort with proxy container port
-    containers: []
+    containers:
+    - args:
+      - sidecar
+      - --prometheus.url=http://127.0.0.1:9090/
+      - --tsdb.path=/prometheus
+      - --grpc-address=[$(POD_IP)]:10901
+      - --http-address=[$(POD_IP)]:10902
+      - |
+        --objstore.config=type: AZURE
+        config:
+          storage_account: $(STORAGE_ACCOUNT)
+          storage_account_key: $(THANOS_STORAGE_ACCOUNT_KEY)
+          container: $(STORAGE_CONTAINER)
+          endpoint: $(AZURE_ENDPOINT)
+          max_retries: $(MAX_RETRIES)
+      - --log.level=info
+      - --log.format=logfmt
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: STORAGE_ACCOUNT
+        valueFrom:
+          secretKeyRef:
+            key: storage_account
+            name: thanos-objectstorage
+      - name: THANOS_STORAGE_ACCOUNT_KEY
+        valueFrom:
+          secretKeyRef:
+            key: storage_account_key
+            name: thanos-objectstorage
+      - name: STORAGE_CONTAINER
+        valueFrom:
+          secretKeyRef:
+            key: container
+            name: thanos-objectstorage
+      - name: AZURE_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            key: endpoint
+            name: thanos-objectstorage
+      - name: MAX_RETRIES
+        valueFrom:
+          secretKeyRef:
+            key: max_retries
+            name: thanos-objectstorage
+      image: quay.io/thanos/thanos:v0.14.0
+      imagePullPolicy: IfNotPresent
+      name: thanos-sidecar
+      ports:
+      - containerPort: 10902
+        name: http
+        protocol: TCP
+      - containerPort: 10901
+        name: grpc
+        protocol: TCP
+      resources:
+        limits:
+          cpu: 100m
+          memory: 100Mi
+        requests:
+          cpu: 50m
+          memory: 100Mi
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /prometheus
+        name: prometheus-prometheus-operator-kube-p-prometheus-db
+        subPath: prometheus-db
+    
 
     ## InitContainers allows injecting additional initContainers. This is meant to allow doing some changes
     ## (permissions, dir tree) on mounted volumes before starting prometheus
